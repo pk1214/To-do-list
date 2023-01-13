@@ -1,0 +1,29 @@
+<%- include('header'); -%> 
+    <!-- Include the header partial template -->
+    <div class="box" id="heading">
+      <h1><%= listTitle %></h1>
+    </div>
+    <!-- Create a div element with the class "box" and an id "heading", which contains an h1 element with the title coming from the passed listTitle variable. -->
+
+    <div class="box">
+    <% for(var i=0;i<newlistItems.length;i++){ %>
+    <!-- Iterate through the newlistItems array passed to the template. -->
+      <!-- if statement checks if the passed value is null -->
+      <% if(newlistItems[i] !== ""){ %> 
+      <div class="item">
+        <input type="checkbox">
+        <p><%=newlistItems[i]  %></p>
+      </div>
+      <%  } %>
+    <%  } %>
+    <!-- For each item in the array, it creates a new div element with the class "item", containing an input checkbox and a paragraph element displaying the item's value. -->
+    <form class="item" action="/" method="post">
+      <input type="text" name="newItem" placeholder="New Item" autocomplete="off"/>
+      <button type="submit" name="list" value="<%=listTitle%>">+</button>
+    </form>
+    <!-- It then has a form element with a class "item", an action attribute that points to the root route "/" and a method attribute set to "post". This form contains an input element for a new item, which has a name attribute of "newItem" and a placeholder attribute of "New Item", and an autocomplete attribute set to "off". There is also a submit button with a type attribute set to "submit" and a name attribute set to "list" and a value attribute set to the passed listTitle variable. -->
+    </div>
+  </body>
+</html>
+<%- include('footer'); -%>
+<!-- Finally, the template includes a 'footer' partial template which is being included in the current template. -->
