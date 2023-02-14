@@ -4,47 +4,143 @@ const app = express(); // Create an Express.js application object
 
 const date = require(__dirname + "/data.js"); // Import the date module from data.js file
 
-let items = ["Buy Food", "Cook Food", "Eat Food"]; // Initialize an array for main page items
+const mongoose = require("mongoose");
 
-let workItems = []; // Initialize an array for work page items
+main().catch((err) => console.log(err));
 
-app.set("view engine", "ejs"); // Set the view engine to EJS
+async function main() {
+  mongoose.set("strictQuery", false);
+  await mongoose.connect(
+    "mongodb+srv://admin-prateek:test-123@cluster0.p3lluu0.mongodb.net/todolistDB"
+  );
+  console.log("Connected to MongoDB");
 
-app.use(express.static("public")); // Serve static files from the "public" directory
+  const itemsSchema = new mongoose.Schema({
+    name: String,
+  });
 
-app.use(express.urlencoded({ extended: true })); // Parse incoming request bodies in a middleware before handlers
+  const Item = mongoose.model("Item", itemsSchema);
 
-app.get("/", function (req, res) {
-  // Route for main page
-  const day = date.getDate(); // Get the current date
-  res.render("list", { listTitle: day, newlistItems: items }); // Render the "list" template with the date as the title and the main page items
-});
+  const item1 = new Item({
+    name: "Eat",
+  });
 
-app.get("/work", function (req, res) {
-  // Route for work page
-  res.render("list", { listTitle: "Work List", newlistItems: workItems }); // Render the "list" template with "Work List" as the title and the work page items
-});
+  const item2 = new Item({
+    name: "Sleep",
+  });
 
-app.get("/about", function (req, res) {
-  // Route for about page
-  res.render("about"); // Render the "about" template
-});
+  const item3 = new Item({
+    name: "Repeat",
+  });
 
-app.post("/", function (req, res) {
-  // Route to handle POST requests
-  console.log(req.body); // Log the request body to the console
-  let item = req.body.newItem; // Get the new item from the request body
-  if (req.body.list === "Work List") {
-    // Check if the new item is for the work page
-    workItems.push(item); // Add the new item to the work page items array
-    res.redirect("/work"); // Redirect the user to the work page
-  } else {
-    items.push(item); // Add the new item to the main page items array
-    res.redirect("/"); // Redirect the user to the main page
+  const defaultItems = [item1, item2, item3];
+
+  const listSchema = mongoose.Schema({
+    name: String,
+    items: [itemsSchema],
+  });
+
+  const List = mongoose.model("List", listSchema);
+
+  app.set("view engine", "ejs"); // Set the view engine to EJS
+
+  app.use(express.static("public")); // Serve static files from the "public" directory
+
+  app.use(express.urlencoded({ extended: true })); // Parse incoming request bodies in a middleware before handlers
+
+  app.get("/", function (req, res) {
+    Item.find({}, function (err, foundItems) {
+      if (foundItems.length === 0) {
+        Item.insertMany(defaultItems, function (err) {
+          if (err) {
+            console.log(err);
+          } else {
+            console.log("successfully saved items to the database");
+          }
+          res.redirect("/");
+        });
+      }
+      const day = date.getDate(); // Get the current date
+      res.render("list", { listTitle: day, newlistItems: foundItems });
+    });
+  });
+
+  app.get("/about", function (req, res) {
+    // Route for about page
+    res.render("about"); // Render the "about" template
+  });
+
+  //To make only the first letter capital.
+  function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
   }
-});
 
-app.listen(3000, function () {
-  // Start the server on port 3000
-  console.log("Sever is running on port 3000"); // Log a message to the console when the server is running
-});
+  app.get("/:customListName", function (req, res) {
+    const customListName = capitalizeFirstLetter(req.params.customListName);
+    List.findOne({ name: customListName }, function (err, foundList) {
+      if (!err) {
+        // if (customListName === "About") {
+        //   res.render("about");
+        // }
+        if (!foundList) {
+          // Create a new list
+          const list = new List({
+            name: customListName,
+            items: defaultItems,
+          });
+          list.save();
+          res.redirect("/" + customListName);
+        } else {
+          // Show an existing list
+          res.render("list", {
+            listTitle: foundList.name,
+            newlistItems: foundList.items,
+          });
+        }
+      }
+    });
+  });
+
+  app.post("/", function (req, res) {
+    const itemName = req.body.newItem; // Get the new item from the request body
+    const listName = req.body.list;
+    const itemNew = new Item({
+      name: itemName,
+    });
+    if (listName === date.getDate()) {
+      itemNew.save();
+      res.redirect("/");
+    } else {
+      List.findOne({ name: listName }, function (err, foundList) {
+        foundList.items.push(itemNew);
+        foundList.save();
+        res.redirect("/" + listName);
+      });
+    }
+  });
+
+  app.post("/delete", function (req, res) {
+    const checkedItemId = req.body.checkbox;
+    const listName = req.body.listName;
+    if (listName === date.getDate()) {
+      Item.findByIdAndDelete(checkedItemId, function (err) {
+        if (!err) {
+          console.log("Successfully deleted checked item.");
+          res.redirect("/");
+        }
+      });
+    } else {
+      List.findOne({ name: listName }, function (err, foundList) {
+        //******ALTERNATE LINE FROM VIDEO ***************
+        foundList.items.pull({ _id: checkedItemId });
+        foundList.save();
+        res.redirect("/" + listName);
+      });
+    }
+  });
+
+  app.listen(3000, function () {
+    // Start the server on port 3000
+    console.log("Sever is running on port 3000"); // Log a message to the console when the server is running
+  });
+}
